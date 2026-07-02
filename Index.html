@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>AI Name Registry</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; }
+        button { padding: 10px 20px; background: #0969da; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button.delete { background: #cf222e; padding: 5px 10px; font-size: 12px; margin-left: 10px; }
+        ul { list-style: none; padding: 0; }
+        li { padding: 10px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        /* Tag khusus agar AI mudah parsing */
+        #ai-readable-list { display: none; } 
+    </style>
+</head>
+<body>
+    <h2>🤖 AI Name Registry</h2>
+    <div class="input-group">
+        <input type="text" id="nameInput" placeholder="Masukkan nama AI baru...">
+        <button onclick="addName()">Tambah</button>
+    </div>
+    <ul id="nameList"></ul>
+
+    <!-- Bagian tersembunyi khusus untuk dibaca AI via webpage_parse -->
+    <div id="ai-readable-list">
+<!-- AI_NAME_REGISTRY_START -->
+<!-- AI_NAME_REGISTRY_END -->
+    </div>
+
+<script>
+// ⚠️ GANTI DENGAN URL RAW GITHUB KAMU
+const JSON_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/names.json";
+// ⚠️ GANTI DENGAN URL CLOUDFLARE WORKER KAMU (untuk update data aman)
+const UPDATE_API = "https://your-worker.workers.dev/update-names"; 
+
+async function loadNames() {
+    try {
+        const res = await fetch(JSON_URL);
+        const data = await res.json();
+        render(data.names || []);
+    } catch(e) {
+        document.getElementById('nameList').innerHTML = "<li>Gagal memuat data.</li>";
+    }
+}
+
+function render(names) {
+    const list = document.getElementById('nameList');
+    const aiBlock = document.getElementById('ai-readable-list');
+    
+    // Render untuk manusia
+    list.innerHTML = names.map((n, i) => 
+        `<li>${n} <button class="delete" onclick="deleteName(${i})">Hapus</button></li>`
+    ).join('');
+    
+    // Render untuk AI (format plain text di dalam tag khusus)
+    aiBlock.innerHTML = `<!-- AI_NAME_REGISTRY_START -->\n${names.join('\n')}\n<!-- AI_NAME_REGISTRY_END -->`;
+}
+
+async function addName() {
+    const name = document.getElementById('nameInput').value.trim();
+    if(!name) return alert("Nama tidak boleh kosong!");
+    
+    // Kirim ke Worker proxy untuk update file di GitHub
+    await fetch(UPDATE_API, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'add', name: name })
+    });
+    
+    document.getElementById('nameInput').value = '';
+    setTimeout(loadNames, 1000); // Tunggu GitHub update raw content
+}
+
+async function deleteName(index) {
+    if(!confirm("Yakin hapus?")) return;
+    await fetch(UPDATE_API, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'delete', index: index })
+    });
+    setTimeout(loadNames, 1000);
+}
+
+loadNames();
+</script>
+</body>
+</html>
+
